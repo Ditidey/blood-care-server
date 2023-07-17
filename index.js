@@ -10,7 +10,7 @@ const server = http.createServer(app);
 
 app.use(cors());
 app.use(express.json())
-
+app.use(express.urlencoded())
 const wss = new WebSocket.Server({ server });
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.kos6m2u.mongodb.net/?retryWrites=true&w=majority`;
@@ -26,6 +26,7 @@ async function run() {
   try { 
     // await client.connect();
     const usersCollection = client.db('blood-care').collection('users');
+    const testCollection = client.db('blood-care').collection('tests');
     
     app.post('/users', async(req, res)=>{
       const userInfo = req.body;
@@ -33,10 +34,22 @@ async function run() {
       res.send(result);
     })
     app.get('/users', async(req, res)=>{
-        const result = await usersCollection.find().toArray();
+      let search = {}     
+      if(req?.query.group){
+        const searchInput = decodeURIComponent(req.query.group);
+      const searchInputUp = searchInput.toLocaleUpperCase();
+        search = {
+          group : searchInputUp
+        }
+      }
+        const result = await usersCollection.find(search).toArray();
         res.send(result)
     })
-
+    app.post('/tests', async(req, res)=>{
+      const testInfo = req.body;
+      const result = await  testCollection.insertOne(testInfo);
+      res.send(result);
+    })
 
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
@@ -50,12 +63,7 @@ run().catch(console.dir);
 app.get('/', (req, res)=>{
     res.send('Blood care is exchanging')
 })
-// app.listen(port, ()=>{
-//     console.log(`blood care server running on ${port}`)
-// }) 
-
-// web socket 
-// const wss = new WebSocket.Server({ server });
+  
 
 wss.on('connection', (ws) => {
   // console.log(ws)
